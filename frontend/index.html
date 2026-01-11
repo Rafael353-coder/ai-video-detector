@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Video Risk Detector</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    .card {
+      background: #020617;
+      padding: 30px;
+      border-radius: 12px;
+      width: 420px;
+      box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    }
+
+    h1 {
+      margin-top: 0;
+      text-align: center;
+      font-size: 22px;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      margin: 15px 0;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #1d4ed8;
+    }
+
+    .loading {
+      text-align: center;
+      margin-top: 15px;
+      display: none;
+    }
+
+    .result {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 8px;
+      display: none;
+    }
+
+    .low {
+      background: #064e3b;
+    }
+
+    .medium {
+      background: #78350f;
+    }
+
+    .high {
+      background: #7f1d1d;
+    }
+
+    .risk {
+      font-size: 32px;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    .risk-bar {
+      width: 100%;
+      height: 14px;
+      background: #1e293b;
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0 15px 0;
+    }
+
+    .risk-fill {
+      height: 100%;
+      width: 0%;
+      transition: width 0.8s ease;
+    }
+
+    .risk-low {
+      background: #22c55e;
+    }
+
+    .risk-medium {
+      background: #facc15;
+    }
+
+    .risk-high {
+      background: #ef4444;
+    }
+
+    ul {
+      padding-left: 20px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h1>AI Video Risk Detector</h1>
+
+  <input type="file" id="fileInput" accept="video/mp4" />
+  <button onclick="analyze()">Analisar Vídeo</button>
+
+  <div class="loading" id="loading">A analisar vídeo…</div>
+
+  <div class="result" id="result">
+    <div class="risk" id="riskText"></div>
+
+    <div class="risk-bar">
+      <div id="riskFill" class="risk-fill"></div>
+    </div>
+
+    <div id="levelText"></div>
+
+    <h4>Motivos:</h4>
+    <ul id="reasonsList"></ul>
+  </div>
+</div>
+
+<script>
+async function analyze() {
+  const fileInput = document.getElementById("fileInput");
+  const loading = document.getElementById("loading");
+  const result = document.getElementById("result");
+
+  if (!fileInput.files.length) {
+    alert("Seleciona um vídeo primeiro.");
+    return;
+  }
+
+  result.style.display = "none";
+  loading.style.display = "block";
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+
+  try {
+    const response = await fetch("http://127.0.0.1:8000/analyze", {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json();
+
+    loading.style.display = "none";
+    result.style.display = "block";
+
+    const risk = data.risk;
+    const level = data.level;
+
+    // Cor do cartão
+    result.className = "result";
+    if (level === "BAIXO") result.classList.add("low");
+    if (level === "MÉDIO") result.classList.add("medium");
+    if (level === "ALTO") result.classList.add("high");
+
+    // Texto do risco
+    document.getElementById("riskText").innerText = risk + "%";
+    document.getElementById("levelText").innerText = "Risco: " + level;
+
+    // Barra de risco
+    const riskFill = document.getElementById("riskFill");
+    riskFill.style.width = risk + "%";
+    riskFill.className = "risk-fill";
+
+    if (risk < 30) riskFill.classList.add("risk-low");
+    else if (risk < 60) riskFill.classList.add("risk-medium");
+    else riskFill.classList.add("risk-high");
+
+    // Motivos
+    const reasonsList = document.getElementById("reasonsList");
+    reasonsList.innerHTML = "";
+
+    data.reasons.forEach(reason => {
+      const li = document.createElement("li");
+      li.innerText = reason;
+      reasonsList.appendChild(li);
+    });
+
+  } catch (err) {
+    loading.style.display = "none";
+    alert("Erro ao analisar o vídeo.");
+    console.error(err);
+  }
+}
+</script>
+
+</body>
+</html>
+

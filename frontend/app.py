@@ -1,0 +1,79 @@
+from fastapi import FastAPI, UploadFile, File
+from fastapi.middleware.cors import CORSMiddleware
+import tempfile
+import shutil
+import os
+
+from feature_extractor import compute_features
+from risk_scoring import compute_risk_score
+
+# =========================
+# App initialization
+# =========================
+app = FastAPI(title="AI Video Risk Detector")
+
+# =========================
+# CORS (frontend local)
+# =========================
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# =========================
+# Health check
+# =========================
+@app.get("/")
+def root():
+    return {
+        "status": "ok",
+        "message": "AI Video Risk Detector running"
+    }
+
+# =========================
+# Analyze endpoint
+# =========================
+@app.post("/analyze")
+async def analyze_video(
+    file: UploadFile = File(...),
+    mode: str = "normal"   # "normal" ou "strict"
+):
+    # Criar diretório temporário
+    tmp_dir = tempfile.mkdtemp()
+    video_path = os.path.join(tmp_dir, file.filename)
+
+    # Guardar vídeo recebido
+    with open(video_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+
+    try:
+        # 1️⃣ Extrair features
+        features = compute_features(video_path)
+
+        # 2️⃣ Calcular risco (com modo)
+        risk, reasons = compute_risk_score(features, mode)
+
+        # 3️⃣ Nível textual
+        if risk >= 70:
+            level = "ALTO"
+        elif risk >= 40:
+            level = "MÉDIO"
+        else:
+            level = "BAIXO"
+
+        # 4️⃣ Resposta final
+        return {
+            "mode": mode,
+            "risk": risk,
+            "level": level,
+            "reasons": reasons,
+            "features": features
+        }
+
+    finally:
+        # Limpar ficheiros temporários
+        shutil.rmtree(tmp_dir)
+
+
