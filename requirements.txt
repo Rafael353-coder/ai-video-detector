@@ -18,7 +18,7 @@ importlib_resources==6.5.2
 joblib==1.5.3
 kiwisolver==1.4.7
 matplotlib==3.9.4
-mediapipe==0.10.21
+mediapipe==0.10.31
 ml_dtypes==0.5.4
 numpy==1.26.4
 opencv-contrib-python==4.11.0.86
