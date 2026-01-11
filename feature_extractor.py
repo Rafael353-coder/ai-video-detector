@@ -1,137 +1,115 @@
-import os
 import cv2
 import numpy as np
+import mediapipe
+from mediapipe.python.solutions import face_detection
 import tempfile
-import shutil
-import subprocess
-import mediapipe as mp
+import os
 
-# =========================
-# MediaPipe Face Detector
-# =========================
-mp_face = mp.solutions.face_detection.FaceDetection(
+
+# -------------------------------------------------
+# Inicialização do MediaPipe (FORMA COMPATÍVEL)
+# -------------------------------------------------
+mp_face = face_detection.FaceDetection(
     model_selection=0,
     min_detection_confidence=0.5
 )
 
-# =========================
-# Extract frames with ffmpeg
-# =========================
-def extract_frames(video_path, frames_dir):
-    subprocess.run(
-        [
-            "ffmpeg", "-y",
-            "-i", video_path,
-            "-t", "10",
-            "-vf", "fps=1",
-            os.path.join(frames_dir, "frame_%03d.jpg")
-        ],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
-    )
 
-# =========================
-# Extract face from frame
-# =========================
-def extract_face(img):
-    rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-    results = mp_face.process(rgb)
+# -------------------------------------------------
+# Funções auxiliares
+# -------------------------------------------------
+def entropy(gray_img):
+    hist = cv2.calcHist([gray_img], [0], None, [256], [0, 256])
+    hist = hist / (hist.sum() + 1e-6)
+    return -np.sum(hist * np.log2(hist + 1e-6))
 
-    if not results.detections:
-        return None
 
-    box = results.detections[0].location_data.relative_bounding_box
-    h, w, _ = img.shape
+def resize_face(face_img, size=(128, 128)):
+    return cv2.resize(face_img, size, interpolation=cv2.INTER_LINEAR)
 
-    x1 = int(box.xmin * w)
-    y1 = int(box.ymin * h)
-    x2 = int((box.xmin + box.width) * w)
-    y2 = int((box.ymin + box.height) * h)
 
-    face = img[y1:y2, x1:x2]
-
-    if face.size == 0:
-        return None
-
-    face = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
-    face = cv2.resize(face, (128, 128))
-
-    return face
-
-# =========================
-# Compute features
-# =========================
+# -------------------------------------------------
+# Função principal
+# -------------------------------------------------
 def compute_features(video_path):
-    tmp_dir = tempfile.mkdtemp()
-    frames_dir = os.path.join(tmp_dir, "frames")
-    os.mkdir(frames_dir)
+    cap = cv2.VideoCapture(video_path)
 
-    extract_frames(video_path, frames_dir)
-
-    face_variances = []
-    face_entropies = []
+    face_frames = []
+    prev_face = None
     face_temporals = []
     global_temporals = []
-
-    prev_face = None
     prev_gray = None
 
-    for f in sorted(os.listdir(frames_dir)):
-        img = cv2.imread(os.path.join(frames_dir, f))
-        if img is None:
-            continue
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
 
-        # -------- GLOBAL TEMPORAL --------
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        gray = cv2.resize(gray, (128, 128))
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
+        # Movimento global
         if prev_gray is not None:
-            global_temporals.append(
-                np.mean(np.abs(gray - prev_gray))
-            )
-
+            global_temporals.append(np.mean(np.abs(gray - prev_gray)))
         prev_gray = gray
 
-        # -------- FACE FEATURES --------
-        face = extract_face(img)
-        if face is None:
-            continue
+        # Detecção facial
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = mp_face.process(rgb)
 
-        face_variances.append(np.var(face))
+        if results.detections:
+            detection = results.detections[0]
+            bbox = detection.location_data.relative_bounding_box
 
-        hist = cv2.calcHist([face], [0], None, [256], [0, 256])
-        hist = hist / (hist.sum() + 1e-10)
-        face_entropies.append(
-            -np.sum(hist * np.log2(hist + 1e-10))
-        )
+            h, w, _ = frame.shape
+            x1 = int(bbox.xmin * w)
+            y1 = int(bbox.ymin * h)
+            x2 = int((bbox.xmin + bbox.width) * w)
+            y2 = int((bbox.ymin + bbox.height) * h)
 
-        if prev_face is not None:
-            face_temporals.append(
-                np.mean(np.abs(face - prev_face))
-            )
+            if x2 > x1 and y2 > y1:
+                face = gray[y1:y2, x1:x2]
+                face = resize_face(face)
 
-        prev_face = face
+                face_frames.append(face)
 
-    shutil.rmtree(tmp_dir)
+                if prev_face is not None:
+                    face_temporals.append(
+                        np.mean(np.abs(face.astype(np.float32) - 
+prev_face.astype(np.float32)))
+                    )
+
+                prev_face = face
+
+    cap.release()
+
+    # -------------------------------------------------
+    # Extração das métricas
+    # -------------------------------------------------
+    if len(face_frames) == 0:
+        return {
+            "face_variance": 0.0,
+            "face_entropy": 0.0,
+            "face_temporal": 0.0,
+            "global_temporal": float(np.mean(global_temporals)) if 
+global_temporals else 0.0
+        }
+
+    face_stack = np.stack(face_frames)
 
     return {
-        "face_variance": float(np.mean(face_variances)) if face_variances 
-else 0.0,
-        "face_entropy": float(np.mean(face_entropies)) if face_entropies 
-else 0.0,
+        "face_variance": float(np.var(face_stack)),
+        "face_entropy": float(np.mean([entropy(f) for f in face_frames])),
         "face_temporal": float(np.mean(face_temporals)) if face_temporals 
 else 0.0,
         "global_temporal": float(np.mean(global_temporals)) if 
 global_temporals else 0.0
     }
 
-# =========================
-# CLI entry point
-# =========================
+
+# -------------------------------------------------
+# Execução direta (teste local)
+# -------------------------------------------------
 if __name__ == "__main__":
     import sys
-    if len(sys.argv) < 2:
-        print("Usage: python feature_extractor.py <video_path>")
-    else:
-        print(compute_features(sys.argv[1]))
+    print(compute_features(sys.argv[1]))
 
