@@ -7,64 +7,85 @@ import os
 from feature_extractor import compute_features
 from risk_scoring import compute_risk_score
 
-app = FastAPI(title="AI Video Risk Detector")
+# --------------------------------------------------
+# APP
+# --------------------------------------------------
+app = FastAPI(
+    title="AI Video Detector",
+    description="API para deteção de vídeos gerados por IA",
+    version="1.0"
+)
 
-# =========================
-# CORS (para frontend local)
-# =========================
+# --------------------------------------------------
+# CORS (frontend local / deploy)
+# --------------------------------------------------
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],      # MVP / demo
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# =========================
-# Health check
-# =========================
+# --------------------------------------------------
+# HEALTH CHECK
+# --------------------------------------------------
 @app.get("/")
-def root():
-    return {"status": "ok", "message": "AI Video Risk Detector running"}
+def health():
+    return {"status": "ok"}
 
-# =========================
-# Analyze endpoint
-# =========================
+# --------------------------------------------------
+# ANALYZE ENDPOINT
+# --------------------------------------------------
 @app.post("/analyze")
-async def analyze_video(file: UploadFile = File(...)):
-    # Guardar vídeo temporariamente
-    tmp_dir = tempfile.mkdtemp()
-    video_path = os.path.join(tmp_dir, file.filename)
+async def analyze_video(
+    file: UploadFile = File(...),
+    mode: str = "normal"   # normal | strict
+):
+    """
+    Recebe um vídeo e devolve:
+    - risk (0–100)
+    - level (BAIXO | MÉDIO | ALTO)
+    - reasons (explicáveis)
+    - features (debug)
+    """
 
-    with open(video_path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
+    # -------------------------
+    # Guardar vídeo temporário
+    # -------------------------
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        video_path = tmp.name
 
     try:
-        # 1️⃣ Extrair features
+        # -------------------------
+        # Extrair features
+        # -------------------------
         features = compute_features(video_path)
 
-        # 2️⃣ Calcular risco
-        risk, reasons = compute_risk_score(features)
+        # -------------------------
+        # Calcular risco
+        # -------------------------
+        risk, level, reasons = compute_risk_score(features, mode)
 
-        # 3️⃣ Classificação textual
-        if risk >= 70:
-            level = "ALTO"
-        elif risk >= 40:
-            level = "MÉDIO"
-        else:
-            level = "BAIXO"
-
-        return {
+        response = {
             "risk": risk,
             "level": level,
             "reasons": reasons,
             "features": features
         }
 
+    except Exception as e:
+        response = {
+            "error": "Erro ao analisar vídeo",
+            "detail": str(e)
+        }
+
     finally:
-        shutil.rmtree(tmp_dir)
+        # -------------------------
+        # Limpeza
+        # -------------------------
+        if os.path.exists(video_path):
+            os.remove(video_path)
 
-from fastapi.staticfiles import StaticFiles
-
-app.mount("/", StaticFiles(directory="frontend", html=True), 
-name="frontend")
+    return response
 
