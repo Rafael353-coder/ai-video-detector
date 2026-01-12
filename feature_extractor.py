@@ -4,7 +4,7 @@ import mediapipe as mp
 
 
 # =============================
-# MediaPipe – API OFICIAL
+# MediaPipe Face Detector
 # =============================
 mp_face_detection = mp.solutions.face_detection
 face_detector = mp_face_detection.FaceDetection(
@@ -14,10 +14,10 @@ face_detector = mp_face_detection.FaceDetection(
 
 
 # =============================
-# Função auxiliar: entropia
+# Entropia de imagem
 # =============================
-def compute_entropy(gray_img):
-    hist = cv2.calcHist([gray_img], [0], None, [256], [0, 256])
+def compute_entropy(gray):
+    hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
     hist = hist / (hist.sum() + 1e-6)
     return float(-np.sum(hist * np.log2(hist + 1e-6)))
 
@@ -43,20 +43,20 @@ def compute_features(video_path):
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # -------- Movimento global --------
+        # ---- Movimento global ----
         if prev_gray is not None:
             diff = cv2.absdiff(gray, prev_gray)
             global_temporal.append(np.mean(diff))
 
         prev_gray = gray
 
-        # -------- Deteção facial --------
+        # ---- Face detection ----
         rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
         results = face_detector.process(rgb)
 
         if results.detections:
-            detection = results.detections[0]
-            box = detection.location_data.relative_bounding_box
+            det = results.detections[0]
+            box = det.location_data.relative_bounding_box
 
             h, w, _ = frame.shape
             x1 = int(box.xmin * w)
@@ -64,7 +64,6 @@ def compute_features(video_path):
             x2 = int((box.xmin + box.width) * w)
             y2 = int((box.ymin + box.height) * h)
 
-            # Garantir limites válidos
             x1 = max(0, x1)
             y1 = max(0, y1)
             x2 = min(w, x2)
@@ -76,23 +75,16 @@ def compute_features(video_path):
                 face_variance.append(np.var(face))
                 face_entropy.append(compute_entropy(face))
 
-                if prev_face is not None and prev_face.shape == 
-face.shape:
-                    face_temporal.append(np.mean(np.abs(face - 
-prev_face)))
+                if prev_face is not None and prev_face.shape == face.shape:
+                    face_temporal.append(np.mean(np.abs(face - prev_face)))
 
                 prev_face = face
 
     cap.release()
 
     return {
-        "face_variance": float(np.mean(face_variance)) if face_variance 
-else 0.0,
-        "face_entropy": float(np.mean(face_entropy)) if face_entropy else 
-0.0,
-        "face_temporal": float(np.mean(face_temporal)) if face_temporal 
-else 0.0,
-        "global_temporal": float(np.mean(global_temporal)) if 
-global_temporal else 0.0,
+        "face_variance": float(np.mean(face_variance)) if face_variance else 0.0,
+        "face_entropy": float(np.mean(face_entropy)) if face_entropy else 0.0,
+        "face_temporal": float(np.mean(face_temporal)) if face_temporal else 0.0,
+        "global_temporal": float(np.mean(global_temporal)) if global_temporal else 0.0,
     }
-

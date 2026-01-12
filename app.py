@@ -1,73 +1,54 @@
-from fastapi import FastAPI, UploadFile, File
+from fastapi import FastAPI, UploadFile, File, Query
 from fastapi.middleware.cors import CORSMiddleware
 import tempfile
-import shutil
 import os
 
 from feature_extractor import compute_features
 from risk_scoring import compute_risk_score
 
-# --------------------------------------------------
-# APP
-# --------------------------------------------------
-app = FastAPI(
-    title="AI Video Detector",
-    description="API para deteção de vídeos gerados por IA",
-    version="1.0"
-)
+app = FastAPI(title="AI Video Detector")
 
-# --------------------------------------------------
-# CORS (frontend local / deploy)
-# --------------------------------------------------
+# Permitir frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      # MVP / demo
+    allow_origins=["*"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --------------------------------------------------
-# HEALTH CHECK
-# --------------------------------------------------
-@app.get("/")
-def health():
-    return {"status": "ok"}
 
-# --------------------------------------------------
-# ANALYZE ENDPOINT
-# --------------------------------------------------
+@app.get("/")
+def root():
+    return {"status": "API online"}
+
+
 @app.post("/analyze")
 async def analyze_video(
     file: UploadFile = File(...),
-    mode: str = "normal"   # normal | strict
+    mode: str = Query("normal", enum=["normal", "strict"])
 ):
-    """
-    Recebe um vídeo e devolve:
-    - risk (0–100)
-    - level (BAIXO | MÉDIO | ALTO)
-    - reasons (explicáveis)
-    - features (debug)
-    """
-
-    # -------------------------
-    # Guardar vídeo temporário
-    # -------------------------
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
-        shutil.copyfileobj(file.file, tmp)
-        video_path = tmp.name
+    temp_path = None
 
     try:
-        # -------------------------
+        # Guardar vídeo temporário
+        with tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".mp4"
+        ) as tmp:
+            tmp.write(await file.read())
+            temp_path = tmp.name
+
         # Extrair features
-        # -------------------------
-        features = compute_features(video_path)
+        features = compute_features(temp_path)
 
-        # -------------------------
         # Calcular risco
-        # -------------------------
-        risk, level, reasons = compute_risk_score(features, mode)
+        risk, level, reasons = compute_risk_score(
+            features,
+            mode=mode
+        )
 
-        response = {
+        return {
             "risk": risk,
             "level": level,
             "reasons": reasons,
@@ -75,17 +56,12 @@ async def analyze_video(
         }
 
     except Exception as e:
-        response = {
+        return {
             "error": "Erro ao analisar vídeo",
             "detail": str(e)
         }
 
     finally:
-        # -------------------------
-        # Limpeza
-        # -------------------------
-        if os.path.exists(video_path):
-            os.remove(video_path)
-
-    return response
+        if temp_path and os.path.exists(temp_path):
+            os.remove(temp_path)
 
