@@ -3,7 +3,6 @@
 <head>
   <meta charset="UTF-8" />
   <title>AI Video Risk Detector</title>
-
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,6 +12,7 @@
       justify-content: center;
       align-items: center;
       height: 100vh;
+      margin: 0;
     }
 
     .card {
@@ -20,191 +20,103 @@
       padding: 30px;
       border-radius: 12px;
       width: 420px;
+      text-align: center;
       box-shadow: 0 0 40px rgba(0,0,0,0.6);
     }
 
     h1 {
-      margin-top: 0;
-      text-align: center;
-      font-size: 22px;
+      margin-bottom: 20px;
     }
 
     input[type="file"] {
-      width: 100%;
-      margin: 15px 0;
+      margin-bottom: 15px;
     }
 
     button {
       width: 100%;
       padding: 12px;
-      background: #2563eb;
-      color: white;
       border: none;
       border-radius: 8px;
+      background: #4f46e5;
+      color: white;
       font-size: 16px;
       cursor: pointer;
     }
 
     button:hover {
-      background: #1d4ed8;
+      background: #4338ca;
     }
 
-    .loading {
-      text-align: center;
+    #status {
       margin-top: 15px;
-      display: none;
+      font-size: 14px;
     }
 
-    .result {
-      margin-top: 20px;
+    pre {
+      text-align: left;
+      background: #020617;
       padding: 15px;
       border-radius: 8px;
-      display: none;
-    }
-
-    .low {
-      background: #064e3b;
-    }
-
-    .medium {
-      background: #78350f;
-    }
-
-    .high {
-      background: #7f1d1d;
-    }
-
-    .risk {
-      font-size: 32px;
-      font-weight: bold;
-      text-align: center;
-    }
-
-    .risk-bar {
-      width: 100%;
-      height: 14px;
-      background: #1e293b;
-      border-radius: 8px;
-      overflow: hidden;
-      margin: 10px 0 15px 0;
-    }
-
-    .risk-fill {
-      height: 100%;
-      width: 0%;
-      transition: width 0.8s ease;
-    }
-
-    .risk-low {
-      background: #22c55e;
-    }
-
-    .risk-medium {
-      background: #facc15;
-    }
-
-    .risk-high {
-      background: #ef4444;
-    }
-
-    ul {
-      padding-left: 20px;
+      margin-top: 15px;
+      overflow-x: auto;
     }
   </style>
 </head>
 
 <body>
+  <div class="card">
+    <h1>AI Video Risk Detector</h1>
 
-<div class="card">
-  <h1>AI Video Risk Detector</h1>
+    <input type="file" id="videoFile" accept="video/*" />
+    <button onclick="analyze()">Analisar Vídeo</button>
 
-  <input type="file" id="fileInput" accept="video/mp4" />
-  <button onclick="analyze()">Analisar Vídeo</button>
-
-  <div class="loading" id="loading">A analisar vídeo…</div>
-
-  <div class="result" id="result">
-    <div class="risk" id="riskText"></div>
-
-    <div class="risk-bar">
-      <div id="riskFill" class="risk-fill"></div>
-    </div>
-
-    <div id="levelText"></div>
-
-    <h4>Motivos:</h4>
-    <ul id="reasonsList"></ul>
+    <div id="status"></div>
+    <pre id="result"></pre>
   </div>
-</div>
 
-<script>
-async function analyze() {
-  const fileInput = document.getElementById("fileInput");
-  const loading = document.getElementById("loading");
-  const result = document.getElementById("result");
+  <script>
+    // 🔴 URL CORRETA DO BACKEND (Render)
+    const API_URL = "https://ai-video-detector-w67q.onrender.com/analyze?mode=normal";
 
-  if (!fileInput.files.length) {
-    alert("Seleciona um vídeo primeiro.");
-    return;
-  }
+    async function analyze() {
+      const fileInput = document.getElementById("videoFile");
+      const status = document.getElementById("status");
+      const result = document.getElementById("result");
 
-  result.style.display = "none";
-  loading.style.display = "block";
+      result.textContent = "";
+      status.textContent = "";
 
-  const formData = new FormData();
-  formData.append("file", fileInput.files[0]);
+      if (!fileInput.files.length) {
+        alert("Seleciona um vídeo primeiro.");
+        return;
+      }
 
-  try {
-    const response = await fetch("http://127.0.0.1:8000/analyze", {
-      method: "POST",
-      body: formData
-    });
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
 
-    const data = await response.json();
+      status.textContent = "A analisar vídeo...";
 
-    loading.style.display = "none";
-    result.style.display = "block";
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          body: formData
+        });
 
-    const risk = data.risk;
-    const level = data.level;
+        if (!response.ok) {
+          throw new Error("Erro HTTP " + response.status);
+        }
 
-    // Cor do cartão
-    result.className = "result";
-    if (level === "BAIXO") result.classList.add("low");
-    if (level === "MÉDIO") result.classList.add("medium");
-    if (level === "ALTO") result.classList.add("high");
+        const data = await response.json();
 
-    // Texto do risco
-    document.getElementById("riskText").innerText = risk + "%";
-    document.getElementById("levelText").innerText = "Risco: " + level;
+        status.textContent = "Análise concluída";
+        result.textContent = JSON.stringify(data, null, 2);
 
-    // Barra de risco
-    const riskFill = document.getElementById("riskFill");
-    riskFill.style.width = risk + "%";
-    riskFill.className = "risk-fill";
-
-    if (risk < 30) riskFill.classList.add("risk-low");
-    else if (risk < 60) riskFill.classList.add("risk-medium");
-    else riskFill.classList.add("risk-high");
-
-    // Motivos
-    const reasonsList = document.getElementById("reasonsList");
-    reasonsList.innerHTML = "";
-
-    data.reasons.forEach(reason => {
-      const li = document.createElement("li");
-      li.innerText = reason;
-      reasonsList.appendChild(li);
-    });
-
-  } catch (err) {
-    loading.style.display = "none";
-    alert("Erro ao analisar o vídeo.");
-    console.error(err);
-  }
-}
-</script>
-
+      } catch (err) {
+        console.error(err);
+        status.textContent = "Erro ao analisar o vídeo.";
+      }
+    }
+  </script>
 </body>
 </html>
 
