@@ -1,26 +1,15 @@
 import cv2
 import numpy as np
-import mediapipe as mp
-from scipy.stats import entropy
+import os
 
-mp_face = mp.solutions.face_detection.FaceDetection(
-    model_selection=0,
-    min_detection_confidence=0.5
-)
+# 🔐 MediaPipe DESATIVADO em produção (Render)
+USE_MEDIAPIPE = os.getenv("RENDER") is None
 
-def compute_features(video_path: str):
+
+def global_motion_only(video_path: str) -> float:
     cap = cv2.VideoCapture(video_path)
-
-    if not cap.isOpened():
-        raise RuntimeError("Não foi possível abrir o vídeo")
-
-    face_variances = []
-    face_entropies = []
-    face_movements = []
-    global_movements = []
-
-    prev_face = None
     prev_gray = None
+    motions = []
 
     while True:
         ret, frame = cap.read()
@@ -29,44 +18,81 @@ def compute_features(video_path: str):
 
         gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-        # Movimento global
         if prev_gray is not None:
             diff = cv2.absdiff(gray, prev_gray)
-            global_movements.append(np.mean(diff))
+            motions.append(np.mean(diff))
+
         prev_gray = gray
 
-        # Face detection (frame em memória ✔)
-        results = mp_face.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+    cap.release()
+    return float(np.mean(motions)) if motions else 0.0
+
+
+def compute_features(video_path: str) -> dict:
+    # 🚨 PRODUÇÃO (Render) — SEM MediaPipe
+    if not USE_MEDIAPIPE:
+        return {
+            "face_variance": 0.0,
+            "face_entropy": 0.0,
+            "face_temporal": 0.0,
+            "global_temporal": global_motion_only(video_path),
+        }
+
+    # 🧠 LOCAL (com MediaPipe)
+    import mediapipe as mp
+
+    cap = cv2.VideoCapture(video_path)
+    mp_face = mp.solutions.face_detection.FaceDetection(
+        model_selection=0, min_detection_confidence=0.5
+    )
+
+    face_variances = []
+    entropies = []
+    temporal = []
+
+    prev_face = None
+
+    while True:
+        ret, frame = cap.read()
+        if not ret:
+            break
+
+        rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+        results = mp_face.process(rgb)
 
         if results.detections:
             det = results.detections[0]
-            bbox = det.location_data.relative_bounding_box
+            box = det.location_data.relative_bounding_box
 
             h, w, _ = frame.shape
-            x1 = int(bbox.xmin * w)
-            y1 = int(bbox.ymin * h)
-            x2 = int((bbox.xmin + bbox.width) * w)
-            y2 = int((bbox.ymin + bbox.height) * h)
+            x1 = int(box.xmin * w)
+            y1 = int(box.ymin * h)
+            x2 = int((box.xmin + box.width) * w)
+            y2 = int((box.ymin + box.height) * h)
 
-            face = gray[y1:y2, x1:x2]
+            face = frame[y1:y2, x1:x2]
+            if face.size == 0:
+                continue
 
-            if face.size > 0:
-                face_variances.append(np.var(face))
+            gray = cv2.cvtColor(face, cv2.COLOR_BGR2GRAY)
+            face_variances.append(np.var(gray))
 
-                hist = cv2.calcHist([face], [0], None, [256], [0, 256]).flatten()
-                face_entropies.append(entropy(hist + 1e-6))
+            hist = cv2.calcHist([gray], [0], None, [256], [0, 256])
+            hist = hist / (hist.sum() + 1e-6)
+            entropies.append(-np.sum(hist * np.log2(hist + 1e-6)))
 
-                if prev_face is not None and prev_face.shape == face.shape:
-                    face_movements.append(np.mean(cv2.absdiff(face, prev_face)))
+            if prev_face is not None and prev_face.shape == gray.shape:
+                diff = cv2.absdiff(gray, prev_face)
+                temporal.append(np.mean(diff))
 
-                prev_face = face
+            prev_face = gray
 
     cap.release()
 
     return {
         "face_variance": float(np.mean(face_variances)) if face_variances else 0.0,
-        "face_entropy": float(np.mean(face_entropies)) if face_entropies else 0.0,
-        "face_temporal": float(np.mean(face_movements)) if face_movements else 0.0,
-        "global_temporal": float(np.mean(global_movements)) if global_movements else 0.0,
+        "face_entropy": float(np.mean(entropies)) if entropies else 0.0,
+        "face_temporal": float(np.mean(temporal)) if temporal else 0.0,
+        "global_temporal": global_motion_only(video_path),
     }
 

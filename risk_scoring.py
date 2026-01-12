@@ -1,13 +1,5 @@
-def compute_risk_score(features, mode="normal"):
-    """
-    Calcula score de risco (0–100) com regras explicáveis
-    e calibradas para reduzir falsos positivos.
-    """
-
-    # -------------------------
-    # Baseline
-    # -------------------------
-    risk = 10 if mode == "normal" else 20
+def compute_risk_score(features: dict, mode: str = "normal"):
+    risk = 0
     reasons = []
 
     fv = features["face_variance"]
@@ -15,71 +7,40 @@ def compute_risk_score(features, mode="normal"):
     ft = features["face_temporal"]
     gt = features["global_temporal"]
 
-    # -------------------------
-    # Regra 1 — Rosto ausente
-    # -------------------------
-    if fv == 0 and fe == 0:
-        risk += 50
-        reasons.append("Rosto humano não detetado")
-        return min(risk, 100), reasons
-
-    # -------------------------
-    # Regra 2 — Movimento facial
-    # -------------------------
+    # 🔹 Regras faciais
     if ft == 0:
-        risk += 30
+        risk += 25
         reasons.append("Movimento facial inexistente")
-    elif ft < 5:
-        risk += 10
-        reasons.append("Movimento facial muito baixo")
-    elif ft > 80:
-        risk -= 10
-        reasons.append("Movimento facial natural")
 
-    # -------------------------
-    # Regra 3 — Complexidade facial
-    # -------------------------
-    if fe < 4.8:
-        risk += 25
-        reasons.append("Complexidade facial muito baixa")
-    elif fe < 5.5:
-        risk += 10
-        reasons.append("Complexidade facial reduzida")
-    elif fe > 6.8:
-        risk -= 10
-        reasons.append("Alta complexidade facial")
+    if fe < 5.5:
+        risk += 20
+        reasons.append("Complexidade facial baixa")
 
-    # -------------------------
-    # Regra 4 — Movimento global (moderado!)
-    # -------------------------
-    if gt < 3:
+    if fv < 2000:
         risk += 15
-        reasons.append("Movimento global extremamente baixo")
-    elif gt < 10:
-        risk += 5
-        reasons.append("Movimento global reduzido")
-    elif gt > 40:
-        risk -= 10
-        reasons.append("Movimento global natural")
+        reasons.append("Textura facial artificial")
 
-    # -------------------------
-    # Regra 5 — Assinatura típica de IA (COMBINADA)
-    # -------------------------
-    if ft < 5 and fe < 5.2 and gt < 8:
-        risk += 25
-        reasons.append("Padrão facial típico de IA")
+    # 🔹 Regras globais
+    if gt < 15:
+        risk += 20
+        reasons.append("Movimento global demasiado estável")
 
-    # -------------------------
-    # Modo strict
-    # -------------------------
-    if mode == "strict":
+    if gt > 120:
         risk += 10
-        reasons.append("Modo de análise rigoroso")
+        reasons.append("Movimento global errático")
 
-    # -------------------------
-    # Clamps
-    # -------------------------
-    risk = max(0, min(int(risk), 100))
+    # 🔹 Modo estrito
+    if mode == "strict":
+        risk = int(risk * 1.2)
 
-    return risk, reasons
+    risk = min(100, risk)
+
+    if risk < 30:
+        level = "BAIXO"
+    elif risk < 60:
+        level = "MÉDIO"
+    else:
+        level = "ALTO"
+
+    return risk, level, reasons
 
