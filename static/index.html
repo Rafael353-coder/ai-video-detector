@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+  <meta charset="UTF-8" />
+  <title>AI Video Risk Detector</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #0f172a;
+      color: #e5e7eb;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+    }
+
+    .card {
+      background: #020617;
+      padding: 30px;
+      border-radius: 12px;
+      width: 420px;
+      text-align: center;
+      box-shadow: 0 0 40px rgba(0,0,0,0.6);
+    }
+
+    h1 {
+      margin-bottom: 20px;
+    }
+
+    input[type="file"] {
+      margin-bottom: 15px;
+    }
+
+    button {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      background: #4f46e5;
+      color: white;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #4338ca;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+    }
+
+    pre {
+      text-align: left;
+      background: #020617;
+      padding: 15px;
+      border-radius: 8px;
+      margin-top: 15px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="card">
+    <h1>AI Video Risk Detector</h1>
+
+    <input type="file" id="videoFile" accept="video/*" />
+    <button onclick="analyze()">Analisar Vídeo</button>
+
+    <div id="status"></div>
+    <pre id="result"></pre>
+  </div>
+
+  <script>
+    // 🔴 URL CORRETA DO BACKEND (Render)
+    const API_URL = "https://ai-video-detector-w67q.onrender.com/analyze?mode=normal";
+
+    async function analyze() {
+      const fileInput = document.getElementById("videoFile");
+      const status = document.getElementById("status");
+      const result = document.getElementById("result");
+
+      result.textContent = "";
+      status.textContent = "";
+
+      if (!fileInput.files.length) {
+        alert("Seleciona um vídeo primeiro.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("file", fileInput.files[0]);
+
+      status.textContent = "A analisar vídeo...";
+
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error("Erro HTTP " + response.status);
+        }
+
+        const data = await response.json();
+
+        status.textContent = "Análise concluída";
+        result.textContent = JSON.stringify(data, null, 2);
+
+      } catch (err) {
+        console.error(err);
+        status.textContent = "Erro ao analisar o vídeo.";
+      }
+    }
+  </script>
+</body>
+</html>
+
