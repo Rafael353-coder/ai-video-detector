@@ -8,7 +8,9 @@ from risk_scoring import compute_risk_score
 
 app = FastAPI(title="AI Video Detector")
 
-# Permitir frontend
+# -------------------------
+# CORS (frontend)
+# -------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -17,51 +19,48 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-@app.get("/")
-def root():
-    return {"status": "API online"}
-
-
+# -------------------------
+# Endpoint principal
+# -------------------------
 @app.post("/analyze")
 async def analyze_video(
     file: UploadFile = File(...),
     mode: str = Query("normal", enum=["normal", "strict"])
 ):
-    temp_path = None
-
     try:
         # Guardar vídeo temporário
-        with tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix=".mp4"
-        ) as tmp:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".mp4") as tmp:
             tmp.write(await file.read())
-            temp_path = tmp.name
+            video_path = tmp.name
 
         # Extrair features
-        features = compute_features(temp_path)
+        features = compute_features(video_path)
 
         # Calcular risco
-        risk, level, reasons = compute_risk_score(
-            features,
-            mode=mode
-        )
+        risk, reasons = compute_risk_score(features, mode=mode)
+
+        # Classificação humana
+        if risk < 30:
+            level = "BAIXO"
+        elif risk < 60:
+            level = "MÉDIO"
+        else:
+            level = "ALTO"
 
         return {
             "risk": risk,
             "level": level,
             "reasons": reasons,
-            "features": features
+            "features": features,
         }
 
     except Exception as e:
         return {
             "error": "Erro ao analisar vídeo",
-            "detail": str(e)
+            "detail": str(e),
         }
 
     finally:
-        if temp_path and os.path.exists(temp_path):
-            os.remove(temp_path)
+        if "video_path" in locals() and os.path.exists(video_path):
+            os.remove(video_path)
 
