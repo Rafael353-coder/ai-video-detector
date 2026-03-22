@@ -38,6 +38,22 @@ def _compute_image_like_features_from_frame(frame):
     sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
     edge_strength = _safe_float(np.mean(np.sqrt(np.maximum(sobelx*2 + sobely*2, 0))))
 
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 50]
+    ok, encimg = cv2.imencode(".jpg", frame, encode_param)
+    if ok:
+        decimg = cv2.imdecode(encimg, 1)
+        if decimg is not None:
+            jpeg_artifacts = _safe_float(cv2.absdiff(frame, decimg).mean())
+        else:
+            jpeg_artifacts = 0.0
+    else:
+        jpeg_artifacts = 0.0
+
+    blur_img = cv2.GaussianBlur(frame, (9, 9), 0)
+    smoothness = _safe_float(cv2.absdiff(frame, blur_img).mean())
+
+    local_contrast = _safe_float(gray.std())
+
     return {
         "variance": variance,
         "entropy": entropy,
@@ -45,6 +61,9 @@ def _compute_image_like_features_from_frame(frame):
         "high_freq": high_freq,
         "noise": noise_score,
         "edge_strength": edge_strength,
+        "jpeg_artifacts": jpeg_artifacts,
+        "smoothness": smoothness,
+        "local_contrast": local_contrast,
     }
 
 
@@ -99,6 +118,8 @@ def _frame_features(frame):
     sobely = cv2.Sobel(gray, cv2.CV_64F, 0, 1, ksize=3)
     texture_score = _safe_float(np.mean(np.sqrt(np.maximum(sobelx*2 + sobely*2, 0))))
 
+    image_like = _compute_image_like_features_from_frame(frame)
+
     return {
         "variance_mean_base": variance,
         "entropy_mean_base": entropy,
@@ -108,6 +129,9 @@ def _frame_features(frame):
         "high_freq_ratio_mean_base": high_freq_ratio,
         "color_consistency_mean_base": color_consistency,
         "texture_score_mean_base": texture_score,
+        "jpeg_artifacts_mean_base": image_like["jpeg_artifacts"],
+        "smoothness_mean_base": image_like["smoothness"],
+        "local_contrast_mean_base": image_like["local_contrast"],
     }
 
 
@@ -168,7 +192,7 @@ def compute_features(video_path: str) -> dict:
     return aggregated
 
 
-def extract_video_frames_for_image_model(video_path: str, max_frames: int = 8):
+def extract_video_frames_for_image_model(video_path: str, max_frames: int = 10):
     cap = cv2.VideoCapture(video_path)
 
     if not cap.isOpened():

@@ -1,5 +1,7 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 import tempfile
 import os
 import math
@@ -11,9 +13,10 @@ from feature_extractor import compute_features, extract_video_frames_for_image_m
 
 IMAGE_MODEL_PATH = "model_image.pkl"
 VIDEO_MODEL_PATH = "model_video.pkl"
+STATIC_DIR = "static"
+INDEX_FILE = os.path.join(STATIC_DIR, "index.html")
 
 app = FastAPI()
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -58,6 +61,15 @@ def explain_features(features: dict) -> list:
     if features.get("laplacian", 999) < 100:
         reasons.append("Detalhe anormalmente baixo")
 
+    if features.get("jpeg_artifacts", -1) > 8:
+        reasons.append("Padrao de artefactos JPEG incomum")
+
+    if features.get("smoothness", -1) < 12:
+        reasons.append("Superficie visual demasiado suave")
+
+    if features.get("local_contrast", 999) < 35:
+        reasons.append("Contraste local anormalmente baixo")
+
     if features.get("temporal_diff_mean", 999) < 8:
         reasons.append("Consistencia temporal artificial")
 
@@ -101,9 +113,9 @@ def predict_video_features(features: dict):
 
 def predict_video_with_hybrid_strategy(video_path: str):
     video_features = sanitize_dict(compute_features(video_path))
-    video_pred, video_prob = predict_video_features(video_features)
+    _, video_prob = predict_video_features(video_features)
 
-    frame_features_list = extract_video_frames_for_image_model(video_path, max_frames=8)
+    frame_features_list = extract_video_frames_for_image_model(video_path, max_frames=10)
 
     image_frame_probs = []
     for feats in frame_features_list:
@@ -111,9 +123,10 @@ def predict_video_with_hybrid_strategy(video_path: str):
         _, prob = predict_image_features(feats)
         image_frame_probs.append(prob)
 
+    # ✅ FIX IMPORTANTE (linha que estava a dar erro)
     image_prob_mean = sum(image_frame_probs) / len(image_frame_probs) if image_frame_probs else 0.0
 
-    final_prob = (0.25 * video_prob) + (0.75 * image_prob_mean)
+    final_prob = (0.2 * video_prob) + (0.8 * image_prob_mean)
 
     risk = max(0, min(100, int(final_prob * 100)))
 
@@ -138,8 +151,8 @@ def predict_video_with_hybrid_strategy(video_path: str):
 
 
 @app.get("/")
-def root():
-    return {"status": "ok"}
+def serve_index():
+    return FileResponse(INDEX_FILE)
 
 
 @app.get("/health")
@@ -211,3 +224,7 @@ async def analyze_video(file: UploadFile = File(...)):
     finally:
         if temp_path and os.path.exists(temp_path):
             os.remove(temp_path)
+
+
+if os.path.isdir(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")

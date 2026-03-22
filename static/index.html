@@ -1,122 +1,485 @@
 <!DOCTYPE html>
 <html lang="pt">
 <head>
-  <meta charset="UTF-8" />
-  <title>AI Video Risk Detector</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Detector</title>
   <style>
+    * { box-sizing: border-box; }
+
     body {
+      margin: 0;
+      min-height: 100vh;
       font-family: Arial, sans-serif;
-      background: #0f172a;
+      background: linear-gradient(135deg, #0f172a, #1e293b);
       color: #e5e7eb;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
-      margin: 0;
+      padding: 24px;
     }
 
     .card {
-      background: #020617;
-      padding: 30px;
-      border-radius: 12px;
-      width: 420px;
-      text-align: center;
-      box-shadow: 0 0 40px rgba(0,0,0,0.6);
+      width: 100%;
+      max-width: 760px;
+      background: rgba(15, 23, 42, 0.94);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px;
+      padding: 28px;
+      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
     }
 
     h1 {
-      margin-bottom: 20px;
+      margin: 0 0 10px;
+      font-size: 40px;
+      text-align: center;
     }
 
-    input[type="file"] {
-      margin-bottom: 15px;
+    .subtitle {
+      text-align: center;
+      color: #94a3b8;
+      margin-bottom: 24px;
+      font-size: 18px;
     }
 
-    button {
-      width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
-      background: #4f46e5;
-      color: white;
-      font-size: 16px;
+    .dropzone {
+      border: 2px dashed #38bdf8;
+      border-radius: 16px;
+      padding: 34px 20px;
+      text-align: center;
       cursor: pointer;
+      background: rgba(255,255,255,0.02);
+      transition: 0.2s ease;
+      margin-bottom: 18px;
     }
 
-    button:hover {
-      background: #4338ca;
+    .dropzone.dragover {
+      background: rgba(56, 189, 248, 0.12);
+      border-color: #7dd3fc;
     }
 
-    #status {
-      margin-top: 15px;
+    .dropzone strong {
+      display: block;
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+
+    .dropzone small {
+      color: #94a3b8;
       font-size: 14px;
     }
 
-    pre {
+    .selected-file {
+      margin-top: 12px;
+      color: #cbd5e1;
+      font-size: 14px;
+      word-break: break-all;
+    }
+
+    .actions {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+
+    button {
+      border: none;
+      border-radius: 12px;
+      padding: 14px 28px;
+      font-size: 17px;
+      font-weight: bold;
+      color: white;
+      background: linear-gradient(90deg, #2563eb, #38bdf8);
+      cursor: pointer;
+      transition: 0.15s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+    }
+
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .status, .error, .result, .preview-box {
+      display: none;
+      margin-top: 18px;
+      border-radius: 14px;
+      padding: 16px;
+    }
+
+    .status {
+      background: rgba(37, 99, 235, 0.18);
+      border: 1px solid rgba(96, 165, 250, 0.35);
+      color: #bfdbfe;
+    }
+
+    .error {
+      background: rgba(127, 29, 29, 0.28);
+      border: 1px solid rgba(248, 113, 113, 0.35);
+      color: #fecaca;
+    }
+
+    .preview-box {
+      background: #0b1220;
+      border: 1px solid #334155;
+    }
+
+    .preview-label {
+      color: #94a3b8;
+      font-size: 14px;
+      margin-bottom: 10px;
       text-align: left;
+    }
+
+    img, video {
+      width: 100%;
+      max-height: 380px;
+      object-fit: contain;
+      border-radius: 12px;
       background: #020617;
-      padding: 15px;
-      border-radius: 8px;
-      margin-top: 15px;
+      display: block;
+    }
+
+    .result {
+      background: #0b1220;
+      border: 1px solid #334155;
+    }
+
+    .risk-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-weight: bold;
+      margin-bottom: 10px;
+      font-size: 18px;
+    }
+
+    .bar {
+      width: 100%;
+      height: 22px;
+      background: #334155;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-bottom: 14px;
+    }
+
+    .fill {
+      width: 0%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #22c55e, #facc15, #f97316, #ef4444);
+      transition: width 0.35s ease;
+    }
+
+    .level {
+      font-size: 28px;
+      font-weight: bold;
+      margin-bottom: 14px;
+      text-align: left;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 14px;
+    }
+
+    .mini {
+      background: rgba(255,255,255,0.03);
+      border-radius: 10px;
+      padding: 12px;
+      text-align: left;
+    }
+
+    .mini strong {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .section-title {
+      text-align: left;
+      font-weight: bold;
+      margin: 14px 0 8px;
+    }
+
+    ul {
+      text-align: left;
+      margin: 0;
+      padding-left: 20px;
+    }
+
+    li {
+      margin-bottom: 6px;
+    }
+
+    pre {
+      margin: 0;
+      white-space: pre-wrap;
+      word-break: break-word;
+      text-align: left;
+      background: rgba(255,255,255,0.03);
+      padding: 12px;
+      border-radius: 10px;
       overflow-x: auto;
+      color: #cbd5e1;
+      font-size: 13px;
+    }
+
+    @media (max-width: 700px) {
+      .grid { grid-template-columns: 1fr; }
+      h1 { font-size: 32px; }
     }
   </style>
 </head>
-
 <body>
   <div class="card">
-    <h1>AI Video Risk Detector</h1>
+    <h1>AI Detector</h1>
+    <div class="subtitle">Deteta se uma imagem ou vídeo foi gerado por AI</div>
 
-    <input type="file" id="videoFile" accept="video/*" />
-    <button onclick="analyze()">Analisar Vídeo</button>
+    <div id="dropzone" class="dropzone">
+      <strong>Clique ou arraste ficheiro</strong>
+      <small>Suporta imagens e vídeos</small>
+      <div id="selectedFile" class="selected-file"></div>
+    </div>
 
-    <div id="status"></div>
-    <pre id="result"></pre>
+    <input id="fileInput" type="file" accept="image/,video/" style="display:none;">
+
+    <div class="actions">
+      <button id="analyzeBtn" type="button">Analisar</button>
+    </div>
+
+    <div id="statusBox" class="status">A analisar ficheiro...</div>
+    <div id="errorBox" class="error"></div>
+
+    <div id="previewBox" class="preview-box">
+      <div class="preview-label">Pré-visualização</div>
+      <img id="imagePreview" alt="preview imagem" style="display:none;">
+      <video id="videoPreview" controls style="display:none;"></video>
+    </div>
+
+    <div id="resultBox" class="result">
+      <div class="risk-row">
+        <span>Risco estimado</span>
+        <span id="riskText">0%</span>
+      </div>
+
+      <div class="bar">
+        <div id="riskFill" class="fill"></div>
+      </div>
+
+      <div id="levelText" class="level">-</div>
+
+      <div class="grid">
+        <div class="mini">
+          <strong>Predição ML</strong>
+          <span id="mlText">-</span>
+        </div>
+        <div class="mini">
+          <strong>Tipo analisado</strong>
+          <span id="typeText">-</span>
+        </div>
+      </div>
+
+      <div class="section-title">Motivos</div>
+      <ul id="reasonsList"></ul>
+
+      <div class="section-title">Features técnicas</div>
+      <pre id="featuresBox"></pre>
+    </div>
   </div>
 
   <script>
-    // 🔴 URL CORRETA DO BACKEND (Render)
-    const API_URL = "https://ai-video-detector-w67q.onrender.com/analyze?mode=normal";
+    let selectedFile = null;
 
-    async function analyze() {
-      const fileInput = document.getElementById("videoFile");
-      const status = document.getElementById("status");
-      const result = document.getElementById("result");
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+    const selectedFileLabel = document.getElementById("selectedFile");
+    const analyzeBtn = document.getElementById("analyzeBtn");
 
-      result.textContent = "";
-      status.textContent = "";
+    const statusBox = document.getElementById("statusBox");
+    const errorBox = document.getElementById("errorBox");
 
-      if (!fileInput.files.length) {
-        alert("Seleciona um vídeo primeiro.");
+    const previewBox = document.getElementById("previewBox");
+    const imagePreview = document.getElementById("imagePreview");
+    const videoPreview = document.getElementById("videoPreview");
+
+    const resultBox = document.getElementById("resultBox");
+    const riskText = document.getElementById("riskText");
+    const riskFill = document.getElementById("riskFill");
+    const levelText = document.getElementById("levelText");
+    const mlText = document.getElementById("mlText");
+    const typeText = document.getElementById("typeText");
+    const reasonsList = document.getElementById("reasonsList");
+    const featuresBox = document.getElementById("featuresBox");
+
+    dropzone.addEventListener("click", function () {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", function (e) {
+      const file = e.target.files[0];
+      setSelectedFile(file);
+    });
+
+    dropzone.addEventListener("dragover", function (e) {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+
+    dropzone.addEventListener("dragleave", function () {
+      dropzone.classList.remove("dragover");
+    });
+
+    dropzone.addEventListener("drop", function (e) {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      const file = e.dataTransfer.files[0];
+      setSelectedFile(file);
+    });
+
+    analyzeBtn.addEventListener("click", async function () {
+      await analyzeFile();
+    });
+
+    function setSelectedFile(file) {
+      selectedFile = file || null;
+      resetMessages();
+      resetResult();
+
+      if (!selectedFile) {
+        selectedFileLabel.textContent = "";
+        previewBox.style.display = "none";
         return;
       }
 
-      const formData = new FormData();
-      formData.append("file", fileInput.files[0]);
+      selectedFileLabel.textContent = "Ficheiro: " + selectedFile.name;
+      renderPreview(selectedFile);
+      console.log("FILE OK:", selectedFile.name, selectedFile.type);
+    }
 
-      status.textContent = "A analisar vídeo...";
+    function renderPreview(file) {
+      previewBox.style.display = "block";
+      imagePreview.style.display = "none";
+      videoPreview.style.display = "none";
+      imagePreview.src = "";
+      videoPreview.src = "";
+
+      const objectUrl = URL.createObjectURL(file);
+
+      if (file.type.startsWith("image/")) {
+        imagePreview.src = objectUrl;
+        imagePreview.style.display = "block";
+      } else if (file.type.startsWith("video/")) {
+        videoPreview.src = objectUrl;
+        videoPreview.style.display = "block";
+      } else {
+        previewBox.style.display = "none";
+      }
+    }
+
+    function resetMessages() {
+      statusBox.style.display = "none";
+      errorBox.style.display = "none";
+      errorBox.textContent = "";
+    }
+
+    function resetResult() {
+      resultBox.style.display = "none";
+      reasonsList.innerHTML = "";
+      featuresBox.textContent = "";
+      riskText.textContent = "0%";
+      riskFill.style.width = "0%";
+      levelText.textContent = "-";
+      mlText.textContent = "-";
+      typeText.textContent = "-";
+    }
+
+    function showError(message) {
+      errorBox.style.display = "block";
+      errorBox.textContent = message;
+    }
+
+    async function analyzeFile() {
+      resetMessages();
+      resetResult();
+
+      if (!selectedFile) {
+        showError("Seleciona primeiro um ficheiro.");
+        return;
+      }
+
+      const isImage = selectedFile.type.startsWith("image/");
+      const isVideo = selectedFile.type.startsWith("video/");
+
+      if (!isImage && !isVideo) {
+        showError("Formato não suportado. Usa imagem ou vídeo.");
+        return;
+      }
+
+      const endpoint = isImage ? "/analyze-image" : "/analyze";
+      const analyzedType = isImage ? "imagem" : "vídeo";
+
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+
+      statusBox.style.display = "block";
+      analyzeBtn.disabled = true;
 
       try {
-        const response = await fetch(API_URL, {
+        const response = await fetch(endpoint, {
           method: "POST",
           body: formData
         });
 
-        if (!response.ok) {
-          throw new Error("Erro HTTP " + response.status);
+        const data = await response.json();
+        console.log("RESULT:", data);
+
+        if (!response.ok || data.error) {
+          throw new Error(data.detail || data.error || "Erro ao analisar ficheiro.");
         }
 
-        const data = await response.json();
-
-        status.textContent = "Análise concluída";
-        result.textContent = JSON.stringify(data, null, 2);
-
+        renderResult(data, analyzedType);
       } catch (err) {
         console.error(err);
-        status.textContent = "Erro ao analisar o vídeo.";
+        showError(err.message || "Erro inesperado.");
+      } finally {
+        statusBox.style.display = "none";
+        analyzeBtn.disabled = false;
       }
+    }
+
+    function renderResult(data, analyzedType) {
+      resultBox.style.display = "block";
+
+      const risk = Number(data.risk || 0);
+      const level = data.level || "DESCONHECIDO";
+      const mlPrediction = Number(data.ml_prediction);
+
+      riskText.textContent = risk + "%";
+      riskFill.style.width = risk + "%";
+      levelText.textContent = level;
+      mlText.textContent = mlPrediction === 1 ? "AI" : "REAL";
+      typeText.textContent = analyzedType;
+
+      const reasons = Array.isArray(data.reasons) ? data.reasons : [];
+      if (reasons.length === 0) {
+        const li = document.createElement("li");
+        li.textContent = "Sem motivos disponíveis.";
+        reasonsList.appendChild(li);
+      } else {
+        reasons.forEach(function (reason) {
+          const li = document.createElement("li");
+          li.textContent = reason;
+          reasonsList.appendChild(li);
+        });
+      }
+
+      featuresBox.textContent = JSON.stringify(data.features || {}, null, 2);
     }
   </script>
 </body>
 </html>
-
