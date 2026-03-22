@@ -7,90 +7,130 @@
   <style>
     * { box-sizing: border-box; }
 
+    :root {
+      --bg-1: #0f172a;
+      --bg-2: #111827;
+      --card: rgba(15, 23, 42, 0.9);
+      --muted: #94a3b8;
+      --text: #e5e7eb;
+      --line: rgba(255,255,255,0.08);
+      --blue-1: #2563eb;
+      --blue-2: #38bdf8;
+      --ok: #22c55e;
+      --warn: #facc15;
+      --mid: #f97316;
+      --bad: #ef4444;
+    }
+
     body {
       margin: 0;
       min-height: 100vh;
       font-family: Arial, sans-serif;
-      background: linear-gradient(135deg, #0f172a, #1e293b);
-      color: #e5e7eb;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      background:
+        radial-gradient(circle at top left, rgba(56,189,248,0.12), transparent 28%),
+        radial-gradient(circle at top right, rgba(37,99,235,0.10), transparent 30%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      color: var(--text);
       padding: 24px;
     }
 
-    .card {
-      width: 100%;
-      max-width: 760px;
-      background: rgba(15, 23, 42, 0.94);
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 20px;
-      padding: 28px;
-      box-shadow: 0 20px 50px rgba(0,0,0,0.35);
+    .container {
+      max-width: 980px;
+      margin: 0 auto;
     }
 
-    h1 {
-      margin: 0 0 10px;
-      font-size: 40px;
+    .hero {
       text-align: center;
-    }
-
-    .subtitle {
-      text-align: center;
-      color: #94a3b8;
       margin-bottom: 24px;
+    }
+
+    .hero h1 {
+      margin: 0 0 10px;
+      font-size: 48px;
+      line-height: 1.05;
+    }
+
+    .hero p {
+      margin: 0;
+      color: var(--muted);
       font-size: 18px;
     }
 
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 22px;
+      padding: 24px;
+      box-shadow: 0 25px 60px rgba(0,0,0,0.35);
+      backdrop-filter: blur(8px);
+    }
+
+    .upload {
+      display: grid;
+      gap: 16px;
+    }
+
     .dropzone {
-      border: 2px dashed #38bdf8;
-      border-radius: 16px;
-      padding: 34px 20px;
+      border: 2px dashed rgba(56,189,248,0.7);
+      border-radius: 18px;
+      padding: 34px 18px;
       text-align: center;
       cursor: pointer;
-      background: rgba(255,255,255,0.02);
       transition: 0.2s ease;
-      margin-bottom: 18px;
+      background: rgba(255,255,255,0.02);
     }
 
     .dropzone.dragover {
-      background: rgba(56, 189, 248, 0.12);
+      background: rgba(56,189,248,0.10);
       border-color: #7dd3fc;
+      transform: translateY(-1px);
     }
 
     .dropzone strong {
       display: block;
-      font-size: 22px;
+      font-size: 24px;
       margin-bottom: 8px;
     }
 
     .dropzone small {
-      color: #94a3b8;
+      color: var(--muted);
       font-size: 14px;
     }
 
     .selected-file {
       margin-top: 12px;
-      color: #cbd5e1;
       font-size: 14px;
-      word-break: break-all;
+      color: #cbd5e1;
+      word-break: break-word;
     }
 
     .actions {
-      text-align: center;
-      margin-bottom: 20px;
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
     }
 
     button {
       border: none;
-      border-radius: 12px;
-      padding: 14px 28px;
-      font-size: 17px;
+      border-radius: 14px;
+      padding: 14px 22px;
+      font-size: 16px;
       font-weight: bold;
       color: white;
-      background: linear-gradient(90deg, #2563eb, #38bdf8);
       cursor: pointer;
       transition: 0.15s ease;
+    }
+
+    .primary {
+      background: linear-gradient(90deg, var(--blue-1), var(--blue-2));
+      min-width: 170px;
+    }
+
+    .secondary {
+      background: rgba(255,255,255,0.08);
+      color: #e2e8f0;
+      min-width: 140px;
     }
 
     button:hover {
@@ -98,118 +138,125 @@
     }
 
     button:disabled {
-      opacity: 0.6;
+      opacity: 0.65;
       cursor: not-allowed;
       transform: none;
     }
 
-    .status, .error, .result, .preview-box {
+    .status,
+    .error,
+    .preview-box,
+    .result-box {
       display: none;
       margin-top: 18px;
-      border-radius: 14px;
+      border-radius: 16px;
       padding: 16px;
+      border: 1px solid var(--line);
     }
 
     .status {
-      background: rgba(37, 99, 235, 0.18);
-      border: 1px solid rgba(96, 165, 250, 0.35);
+      background: rgba(37,99,235,0.18);
       color: #bfdbfe;
     }
 
     .error {
-      background: rgba(127, 29, 29, 0.28);
-      border: 1px solid rgba(248, 113, 113, 0.35);
+      background: rgba(127,29,29,0.28);
       color: #fecaca;
     }
 
-    .preview-box {
-      background: #0b1220;
-      border: 1px solid #334155;
+    .preview-box,
+    .result-box {
+      background: rgba(255,255,255,0.03);
     }
 
-    .preview-label {
-      color: #94a3b8;
+    .section-label {
+      text-align: left;
+      color: var(--muted);
       font-size: 14px;
       margin-bottom: 10px;
-      text-align: left;
     }
 
     img, video {
       width: 100%;
-      max-height: 380px;
+      max-height: 420px;
       object-fit: contain;
-      border-radius: 12px;
-      background: #020617;
       display: block;
-    }
-
-    .result {
-      background: #0b1220;
-      border: 1px solid #334155;
+      border-radius: 14px;
+      background: #020617;
     }
 
     .risk-row {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      font-weight: bold;
       margin-bottom: 10px;
       font-size: 18px;
+      font-weight: bold;
     }
 
     .bar {
       width: 100%;
-      height: 22px;
+      height: 20px;
       background: #334155;
       border-radius: 999px;
       overflow: hidden;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
 
     .fill {
       width: 0%;
       height: 100%;
       border-radius: 999px;
-      background: linear-gradient(90deg, #22c55e, #facc15, #f97316, #ef4444);
+      background: linear-gradient(90deg, var(--ok), var(--warn), var(--mid), var(--bad));
       transition: width 0.35s ease;
     }
 
-    .level {
+    .level-badge {
+      display: inline-block;
       font-size: 28px;
       font-weight: bold;
-      margin-bottom: 14px;
-      text-align: left;
+      padding: 8px 14px;
+      border-radius: 14px;
+      margin-bottom: 16px;
+      background: rgba(255,255,255,0.05);
     }
 
-    .grid {
+    .metrics {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(4, 1fr);
       gap: 12px;
-      margin-bottom: 14px;
+      margin-bottom: 18px;
     }
 
-    .mini {
+    .metric {
       background: rgba(255,255,255,0.03);
-      border-radius: 10px;
-      padding: 12px;
+      border-radius: 14px;
+      padding: 14px;
       text-align: left;
     }
 
-    .mini strong {
-      display: block;
+    .metric .label {
+      color: var(--muted);
+      font-size: 13px;
       margin-bottom: 6px;
     }
 
-    .section-title {
+    .metric .value {
+      font-size: 18px;
+      font-weight: bold;
+    }
+
+    .title {
       text-align: left;
       font-weight: bold;
       margin: 14px 0 8px;
+      font-size: 16px;
     }
 
     ul {
-      text-align: left;
       margin: 0;
       padding-left: 20px;
+      text-align: left;
     }
 
     li {
@@ -221,74 +268,114 @@
       white-space: pre-wrap;
       word-break: break-word;
       text-align: left;
-      background: rgba(255,255,255,0.03);
-      padding: 12px;
-      border-radius: 10px;
-      overflow-x: auto;
+      font-size: 13px;
       color: #cbd5e1;
+      background: rgba(255,255,255,0.03);
+      padding: 14px;
+      border-radius: 12px;
+      max-height: 280px;
+      overflow: auto;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      text-align: center;
+      color: var(--muted);
       font-size: 13px;
     }
 
-    @media (max-width: 700px) {
-      .grid { grid-template-columns: 1fr; }
-      h1 { font-size: 32px; }
+    @media (max-width: 860px) {
+      .metrics {
+        grid-template-columns: 1fr 1fr;
+      }
+
+      .hero h1 {
+        font-size: 38px;
+      }
+    }
+
+    @media (max-width: 560px) {
+      .metrics {
+        grid-template-columns: 1fr;
+      }
+
+      .hero h1 {
+        font-size: 32px;
+      }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>AI Detector</h1>
-    <div class="subtitle">Deteta se uma imagem ou vídeo foi gerado por AI</div>
-
-    <div id="dropzone" class="dropzone">
-      <strong>Clique ou arraste ficheiro</strong>
-      <small>Suporta imagens e vídeos</small>
-      <div id="selectedFile" class="selected-file"></div>
+  <div class="container">
+    <div class="hero">
+      <h1>AI Detector</h1>
+      <p>Deteta se uma imagem ou vídeo foi gerado por inteligência artificial</p>
     </div>
 
-    <input id="fileInput" type="file" accept="image/,video/" style="display:none;">
-
-    <div class="actions">
-      <button id="analyzeBtn" type="button">Analisar</button>
-    </div>
-
-    <div id="statusBox" class="status">A analisar ficheiro...</div>
-    <div id="errorBox" class="error"></div>
-
-    <div id="previewBox" class="preview-box">
-      <div class="preview-label">Pré-visualização</div>
-      <img id="imagePreview" alt="preview imagem" style="display:none;">
-      <video id="videoPreview" controls style="display:none;"></video>
-    </div>
-
-    <div id="resultBox" class="result">
-      <div class="risk-row">
-        <span>Risco estimado</span>
-        <span id="riskText">0%</span>
+    <div class="card upload">
+      <div id="dropzone" class="dropzone">
+        <strong>Clique ou arraste um ficheiro</strong>
+        <small>Imagens e vídeos suportados</small>
+        <div id="selectedFile" class="selected-file"></div>
       </div>
 
-      <div class="bar">
-        <div id="riskFill" class="fill"></div>
+      <input id="fileInput" type="file" accept="image/,video/" style="display:none;">
+
+      <div class="actions">
+        <button id="analyzeBtn" class="primary" type="button">Analisar ficheiro</button>
+        <button id="resetBtn" class="secondary" type="button">Limpar</button>
       </div>
 
-      <div id="levelText" class="level">-</div>
+      <div id="statusBox" class="status">A analisar ficheiro...</div>
+      <div id="errorBox" class="error"></div>
 
-      <div class="grid">
-        <div class="mini">
-          <strong>Predição ML</strong>
-          <span id="mlText">-</span>
+      <div id="previewBox" class="preview-box">
+        <div class="section-label">Pré-visualização</div>
+        <img id="imagePreview" alt="preview imagem" style="display:none;">
+        <video id="videoPreview" controls style="display:none;"></video>
+      </div>
+
+      <div id="resultBox" class="result-box">
+        <div class="risk-row">
+          <span>Risco estimado</span>
+          <span id="riskText">0%</span>
         </div>
-        <div class="mini">
-          <strong>Tipo analisado</strong>
-          <span id="typeText">-</span>
+
+        <div class="bar">
+          <div id="riskFill" class="fill"></div>
         </div>
+
+        <div id="levelText" class="level-badge">-</div>
+
+        <div class="metrics">
+          <div class="metric">
+            <div class="label">Predição ML</div>
+            <div id="mlText" class="value">-</div>
+          </div>
+          <div class="metric">
+            <div class="label">Tipo analisado</div>
+            <div id="typeText" class="value">-</div>
+          </div>
+          <div class="metric">
+            <div class="label">Prob. modelo vídeo</div>
+            <div id="videoProbText" class="value">-</div>
+          </div>
+          <div class="metric">
+            <div class="label">Prob. frames imagem</div>
+            <div id="imageProbText" class="value">-</div>
+          </div>
+        </div>
+
+        <div class="title">Motivos</div>
+        <ul id="reasonsList"></ul>
+
+        <div class="title">Features técnicas</div>
+        <pre id="featuresBox"></pre>
       </div>
 
-      <div class="section-title">Motivos</div>
-      <ul id="reasonsList"></ul>
-
-      <div class="section-title">Features técnicas</div>
-      <pre id="featuresBox"></pre>
+      <div class="footer-note">
+        MVP local integrado com FastAPI
+      </div>
     </div>
   </div>
 
@@ -299,6 +386,7 @@
     const fileInput = document.getElementById("fileInput");
     const selectedFileLabel = document.getElementById("selectedFile");
     const analyzeBtn = document.getElementById("analyzeBtn");
+    const resetBtn = document.getElementById("resetBtn");
 
     const statusBox = document.getElementById("statusBox");
     const errorBox = document.getElementById("errorBox");
@@ -313,6 +401,8 @@
     const levelText = document.getElementById("levelText");
     const mlText = document.getElementById("mlText");
     const typeText = document.getElementById("typeText");
+    const videoProbText = document.getElementById("videoProbText");
+    const imageProbText = document.getElementById("imageProbText");
     const reasonsList = document.getElementById("reasonsList");
     const featuresBox = document.getElementById("featuresBox");
 
@@ -321,8 +411,7 @@
     });
 
     fileInput.addEventListener("change", function (e) {
-      const file = e.target.files[0];
-      setSelectedFile(file);
+      setSelectedFile(e.target.files[0]);
     });
 
     dropzone.addEventListener("dragover", function (e) {
@@ -337,12 +426,20 @@
     dropzone.addEventListener("drop", function (e) {
       e.preventDefault();
       dropzone.classList.remove("dragover");
-      const file = e.dataTransfer.files[0];
-      setSelectedFile(file);
+      setSelectedFile(e.dataTransfer.files[0]);
     });
 
     analyzeBtn.addEventListener("click", async function () {
       await analyzeFile();
+    });
+
+    resetBtn.addEventListener("click", function () {
+      selectedFile = null;
+      fileInput.value = "";
+      selectedFileLabel.textContent = "";
+      resetMessages();
+      resetPreview();
+      resetResult();
     });
 
     function setSelectedFile(file) {
@@ -352,7 +449,7 @@
 
       if (!selectedFile) {
         selectedFileLabel.textContent = "";
-        previewBox.style.display = "none";
+        resetPreview();
         return;
       }
 
@@ -361,23 +458,27 @@
       console.log("FILE OK:", selectedFile.name, selectedFile.type);
     }
 
-    function renderPreview(file) {
-      previewBox.style.display = "block";
+    function resetPreview() {
+      previewBox.style.display = "none";
       imagePreview.style.display = "none";
       videoPreview.style.display = "none";
       imagePreview.src = "";
       videoPreview.src = "";
+    }
+
+    function renderPreview(file) {
+      resetPreview();
 
       const objectUrl = URL.createObjectURL(file);
 
       if (file.type.startsWith("image/")) {
+        previewBox.style.display = "block";
         imagePreview.src = objectUrl;
         imagePreview.style.display = "block";
       } else if (file.type.startsWith("video/")) {
+        previewBox.style.display = "block";
         videoPreview.src = objectUrl;
         videoPreview.style.display = "block";
-      } else {
-        previewBox.style.display = "none";
       }
     }
 
@@ -396,6 +497,8 @@
       levelText.textContent = "-";
       mlText.textContent = "-";
       typeText.textContent = "-";
+      videoProbText.textContent = "-";
+      imageProbText.textContent = "-";
     }
 
     function showError(message) {
@@ -464,6 +567,8 @@
       levelText.textContent = level;
       mlText.textContent = mlPrediction === 1 ? "AI" : "REAL";
       typeText.textContent = analyzedType;
+      videoProbText.textContent = data.video_model_prob !== undefined ? data.video_model_prob : "-";
+      imageProbText.textContent = data.image_frame_prob_mean !== undefined ? data.image_frame_prob_mean : "-";
 
       const reasons = Array.isArray(data.reasons) ? data.reasons : [];
       if (reasons.length === 0) {
